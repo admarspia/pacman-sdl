@@ -5,10 +5,7 @@
 
 #define EPSILON 1e-9
 
-static inline int approx_equal(float a, float b){
-  return fabsf(a - b) < EPSILON;
-}
-
+int approx_equal(float a, float b);
 
 #endif // !APPROX
 

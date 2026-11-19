@@ -1,95 +1,112 @@
-#include "../../include/pacgfx/geometry/mat3.h"
+#include <pacgfx/geometry/mat3.h>
+#include <pacgfx/geometry/approx.h>
 #include <math.h>
 
-// Matrix operations
 mat3 mat3_identity(void) {
-    return (mat3){
-        {1, 0, 0},
-        {0, 1, 0},
-        {0, 0, 1}
-    };
+    return (mat3){{
+        {1.0, 0.0, 0.0},
+        {0.0, 1.0, 0.0},
+        {0.0, 0.0, 1.0}
+    }};
 }
 
 mat3 mat3_multiply(mat3 a, mat3 b) {
     mat3 result;
 
-    vec3 row0 = {a.cl0.x, a.cl1.x, a.cl2.x};
-    vec3 row1 = {a.cl0.y, a.cl1.y, a.cl2.y};
-    vec3 row2 = {a.cl0.z, a.cl1.z, a.cl2.z};
-
-    result.cl0 = (vec3){
-        vec3_dot(row0, b.cl0),
-        vec3_dot(row1, b.cl0),
-        vec3_dot(row2, b.cl0)
-    };
-
-    result.cl1 = (vec3){
-        vec3_dot(row0, b.cl1),
-        vec3_dot(row1, b.cl1),
-        vec3_dot(row2, b.cl1)
-    };
-
-    result.cl2 = (vec3){
-        vec3_dot(row0, b.cl2),
-        vec3_dot(row1, b.cl2),
-        vec3_dot(row2, b.cl2)
-    };
+    for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 3; c++) {
+            double sum = 0.0;
+            for (int k = 0; k < 3; k++)
+                sum += a.m[r][k] * b.m[k][c];
+            result.m[r][c] = sum;
+        }
+    }
 
     return result;
 }
 
-mat3 mat3_transpose(mat3 m) {
-    return (mat3){
-        {m.cl0.x, m.cl1.x, m.cl2.x},
-        {m.cl0.y, m.cl1.y, m.cl2.y},
-        {m.cl0.z, m.cl1.z, m.cl2.z}
-    };
+mat3 mat3_transpose(mat3 a) {
+    mat3 result;
+
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            result.m[c][r] = a.m[r][c];
+
+    return result;
 }
 
-// Transformation matrices
 mat3 mat3_translation(double tx, double ty) {
-    return (mat3){
-        {1, 0, 0},
-        {0, 1, 0},
-        {tx, ty, 1}
-    };
+    return (mat3){{
+        {1.0, 0.0, tx},
+        {0.0, 1.0, ty},
+        {0.0, 0.0, 1.0}
+    }};
 }
 
 mat3 mat3_rotation(double radians) {
     double c = cos(radians);
     double s = sin(radians);
 
-    return (mat3){
-        {c, s, 0},
-        {-s, c, 0},
-        {0, 0, 1}
-    };
+    return (mat3){{
+        {c,   -s,  0.0},
+        {s,    c,  0.0},
+        {0.0, 0.0, 1.0}
+    }};
 }
 
 mat3 mat3_scaling(double sx, double sy) {
-    return (mat3){
-        {sx, 0, 0},
-        {0, sy, 0},
-        {0, 0, 1}
+    return (mat3){{
+        {sx,  0.0, 0.0},
+        {0.0, sy,  0.0},
+        {0.0, 0.0, 1.0}
+    }};
+}
+
+vec2 mat3_transform_point(mat3 m, vec2 p) {
+    return (vec2){
+        m.m[0][0] * p.x + m.m[0][1] * p.y + m.m[0][2],
+        m.m[1][0] * p.x + m.m[1][1] * p.y + m.m[1][2]
     };
 }
 
-// Apply transformation
-vec3 mat3_transform_point(mat3 m, vec3 p) {
-    return (vec3){
-        m.cl0.x * p.x + m.cl1.x * p.y + m.cl2.x * p.z,
-        m.cl0.y * p.x + m.cl1.y * p.y + m.cl2.y * p.z,
-        m.cl0.z * p.x + m.cl1.z * p.y + m.cl2.z * p.z
+vec2 mat3_transform_vector(mat3 m, vec2 v) {
+    return (vec2){
+        m.m[0][0] * v.x + m.m[0][1] * v.y,
+        m.m[1][0] * v.x + m.m[1][1] * v.y
     };
 }
 
-vec3 mat3_transform_vector(mat3 m, vec3 v) {
-    // Ignore translation by using homogeneous coordinate w = 0.
-    v.z = 0.0;
+int mat3_equal(mat3 a, mat3 b) {
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 3; c++)
+            if (!approx_equal(a.m[r][c], b.m[r][c]))
+                return 0;
 
-    return (vec3){
-        m.cl0.x * v.x + m.cl1.x * v.y,
-        m.cl0.y * v.x + m.cl1.y * v.y,
-        m.cl0.z * v.x + m.cl1.z * v.y
-    };
+    return 1;
+}
+
+
+int mat3_inverse(mat3 m, mat3 *out) {
+    double a = m.m[0][0], b = m.m[0][1], tx = m.m[0][2];
+    double c = m.m[1][0], d = m.m[1][1], ty = m.m[1][2];
+
+    double det = a * d - b * c;
+    if (approx_equal(det, 0.0))
+        return 0;
+
+    double inv_det = 1.0 / det;
+
+    /* inverse of the 2x2 linear part */
+    double ia =  d * inv_det;
+    double ib = -b * inv_det;
+    double ic = -c * inv_det;
+    double id =  a * inv_det;
+
+    /* inverse translation = -(A^-1 * t) */
+    *out = (mat3){{
+        {ia, ib, -(ia * tx + ib * ty)},
+        {ic, id, -(ic * tx + id * ty)},
+        {0.0, 0.0, 1.0}
+    }};
+    return 1;
 }

@@ -1,0 +1,11 @@
+function(pg_add_test name)
+    add_executable(${name} ${ARGN})
+    target_link_libraries(${name} PRIVATE pg_geometry)
+    target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/harness)
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+pg_add_test(test_approx geometry/test_approx.c)
+pg_add_test(test_angle  geometry/test_angle.c)
+pg_add_test(test_vec2   geometry/test_vec2.c)
+pg_add_test(test_mat3   geometry/test_mat3.c)

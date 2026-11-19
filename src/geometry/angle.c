@@ -1,61 +1,51 @@
-#include "../../include/pacgfx/geometry/angle.h"
+#include <pacgfx/geometry/angle.h>
+#include <pacgfx/geometry/approx.h>
 #include <math.h>
 
-#define PI 3.14159265358979323846
-#define TWO_PI (2.0 * PI)
-
-// Conversion
-float angle_to_radians(float degrees) {
-    return degrees * (PI / 180.0);
+double angle_to_radians(double degrees) {
+    return degrees * (PG_PI / 180.0);
 }
 
-float angle_to_degrees(float radians) {
-    return radians * (180.0 / PI);
+double angle_to_degrees(double radians) {
+    return radians * (180.0 / PG_PI);
 }
 
-// Normalization
-float angle_normalize(float radians) {
-    radians = fmodf(radians, TWO_PI);
+double angle_normalize(double radians) {
+    double r = fmod(radians, PG_TWO_PI);   /* in (-2*pi, 2*pi) */
 
-    if (radians < 0.0f)
-        radians += TWO_PI;
+    if (r < 0.0)
+        r += PG_TWO_PI;
 
-    return radians;
+    /* A tiny negative input (e.g. -1e-20) rounds to exactly 2*pi above,
+     * which is outside [0, 2*pi). It is the same angle as 0. */
+    if (r >= PG_TWO_PI)
+        r = 0.0;
+
+    return r;
 }
 
-float angle_normalize_signed(float radians) {
-    radians = angle_normalize(radians);
+double angle_normalize_signed(double radians) {
+    double r = angle_normalize(radians);
 
-    if (radians >= PI)
-        radians -= TWO_PI;
+    if (r >= PG_PI)
+        r -= PG_TWO_PI;
 
-    return radians;
+    return r;
 }
 
-// Arithmetic
-float angle_add(float a, float b) {
-    return angle_normalize(a + b);
+double angle_lerp(double a, double b, double t) {
+    double diff = angle_normalize_signed(b - a);
+    return a + diff * t;
 }
 
-float angle_sub(float a, float b) {
-    return angle_normalize(a - b);
+int angle_equal(double a, double b) {
+    return approx_equal(angle_normalize_signed(a - b), 0.0);
 }
 
-float angle_lerp(float a, float b, float t) {
-    float diff = angle_normalize_signed(b - a);
-
-    return angle_normalize(a + diff * t);
-}
-
-// Comparison
-int angle_equal(float a, float b) {
-    return approx_equal(angle_normalize_signed(a - b), 0.0f);
-}
-
-int angle_between(float angle, float start, float end) {
+int angle_between(double angle, double start, double end) {
     angle = angle_normalize(angle);
     start = angle_normalize(start);
-    end = angle_normalize(end);
+    end   = angle_normalize(end);
 
     if (start <= end)
         return angle >= start && angle <= end;
